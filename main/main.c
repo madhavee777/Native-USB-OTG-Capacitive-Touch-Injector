@@ -4,6 +4,7 @@
 #include "driver/touch_pad.h"
 #include "tinyusb.h"
 #include "class/hid/hid_device.h"
+#include "tinyusb_default_config.h"
 
 // Define the Touch Pad and a baseline threshold
 #define TOUCH_PAD_NUM TOUCH_PAD_NUM1 
@@ -75,7 +76,7 @@ void app_main(void) {
     touch_pad_fsm_start();
 
     // 2. Initialize TinyUSB with default configurations from menuconfig
-    const tinyusb_config_t tusb_cfg = { 0 };
+    const tinyusb_config_t tusb_cfg = TINYUSB_DEFAULT_CONFIG();
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
 
     // 3. Spin up the polling task
