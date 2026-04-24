@@ -9,7 +9,7 @@
 
 // Define the Touch Pad and a baseline threshold
 #define TOUCH_PAD_NUM TOUCH_PAD_NUM1 
-#define TOUCH_THRESHOLD 30000 // calibrate this later
+#define TOUCH_THRESHOLD 24000 // calibrate this later
 
 // --- 1. TinyUSB Manual Descriptors ---
 
@@ -45,14 +45,6 @@ uint8_t const desc_configuration[] = {
     TUD_HID_DESCRIPTOR(0, 0, HID_ITF_PROTOCOL_KEYBOARD, sizeof(desc_hid_report), 0x81, 16, 10)
 };
 
-// The String Descriptors (Human-readable names)
-static const char* string_desc_arr [] = {
-    (const char[]) { 0x09, 0x04 }, // 0: Supported language is English
-    "Custom Corp",                 // 1: Manufacturer
-    "ESP32-S3 Touch Injector",     // 2: Product
-    "123456"                       // 3: Serial Number
-};
-
 // --- 2. Standard HID Callbacks (Required by TinyUSB) ---
 
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance) {
@@ -66,7 +58,65 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
 }
 
-// --- 3. The Main Application Task ---
+// Helper function to type out a full string safely
+void type_string(const char *text) {
+    // 1. Safety Check: Make sure the Mac has actually mounted the USB
+    if (!tud_mounted()) {
+        printf("USB is not mounted by the OS yet!\n");
+        return;
+    }
+
+    while (*text) {
+        uint8_t keycode[6] = {0};
+        uint8_t modifier = 0;
+        char c = *text;
+
+        // Map ASCII character to HID Keycode
+        if (c >= 'a' && c <= 'z') {
+            keycode[0] = HID_KEY_A + (c - 'a');
+        } else if (c >= 'A' && c <= 'Z') {
+            keycode[0] = HID_KEY_A + (c - 'A');
+            modifier = KEYBOARD_MODIFIER_LEFTSHIFT; 
+        } else if (c >= '1' && c <= '9') {
+            keycode[0] = HID_KEY_1 + (c - '1');
+        } else if (c == '0') {
+            keycode[0] = HID_KEY_0;
+        } else if (c == ' ') {
+            keycode[0] = HID_KEY_SPACE;
+        } else if (c == '\n') {
+            keycode[0] = HID_KEY_ENTER;
+        } else if (c == '.') { 
+            keycode[0] = HID_KEY_PERIOD;
+        } else if (c == '-') {
+            keycode[0] = HID_KEY_MINUS;
+        }
+
+        if (keycode[0] != 0 || modifier != 0) {
+            
+            // 2. WAIT until the Mac is ready to receive a new report
+            while (!tud_hid_ready()) {
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+            
+            // Send the Key Press
+            tud_hid_keyboard_report(0, modifier, keycode);
+
+            // 3. WAIT until the Mac processes the press before sending the release
+            while (!tud_hid_ready()) {
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+            
+            // Send the Key Release
+            tud_hid_keyboard_report(0, 0, NULL);
+            
+            // A tiny human-like delay between letters so macOS doesn't drop them
+            vTaskDelay(pdMS_TO_TICKS(15)); 
+        }
+        text++; 
+    }
+}
+
+// --- The Main Application Task ---
 
 void touch_keyboard_task(void *pvParameters) {
     uint32_t touch_value;
@@ -79,24 +129,16 @@ void touch_keyboard_task(void *pvParameters) {
         // Print the value so you can calibrate!
         printf("Current Touch Value: %" PRIu32 "\n", touch_value);
 
-        // Flipped logic: We check if it drops BELOW the threshold
+        // Flipped logic: We check if it drops BELOW the calibrated threshold
         if (touch_value < TOUCH_THRESHOLD && !pressed) {
             
-            printf("Touch Detected! Injecting Spacebar...\n");
+            printf("Touch Detected! Injecting String...\n");
 
-            // 1. Prepare the HID Keyboard report (Spacebar)
-            uint8_t keycode[6] = {HID_KEY_SPACE};
+            // Type your automated payload!
+            type_string("Hello from the ESP32-S3.\n");
             
-            // 2. Send the key press to the host OS
-            tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, keycode);
             pressed = true;
 
-            // 3. Simple debounce delay
-            vTaskDelay(pdMS_TO_TICKS(100));
-
-            // 4. Send empty report to simulate key release
-            tud_hid_keyboard_report(HID_ITF_PROTOCOL_KEYBOARD, 0, NULL);
-            
         // Check if the value has returned to baseline
         } else if (touch_value > TOUCH_THRESHOLD) {
             pressed = false; // Reset state when wire is released
@@ -119,7 +161,6 @@ void app_main(void) {
     
     // 3. Inject custom descriptors using the nested struct
     tusb_cfg.descriptor.device = &desc_device;
-    tusb_cfg.descriptor.string = string_desc_arr;
     tusb_cfg.descriptor.full_speed_config = desc_configuration;
 
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
