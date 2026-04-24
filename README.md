@@ -40,6 +40,31 @@ Building a native USB device from scratch presents several low-level challenges.
 
 ---
 
+## How to Test Safely
+USB Keystroke injectors are powerful and can accidentally execute dangerous terminal commands if not tested properly.
+
+1. Dual-Cable Connection: Ensure both the UART and USB-OTG cables are plugged into the host machine simultaneously.
+
+2. Flash and Monitor: Run idf.py -p <UART_PORT> flash monitor to boot the device and view the live baseline capacitance logs.
+
+3. The Sandbox: Open a completely blank text document (e.g., Notepad, TextEdit, or a new VS Code tab).
+
+4. Arm the Device: Click your mouse inside the blank document so the blinking cursor is active.
+
+5. Execute: Pinch the bare metal of the jumper wire. The string will instantly type out into the document, and the serial monitor will log "Touch Detected! Injecting String...".
+
+## Real-World Applications
+While this project types a simple "Hello" message, the underlying architecture serves as the foundation for highly practical applications:
+
+1. Assistive Technology: Creating ultra-low-cost, custom adaptive switches for individuals with limited mobility.
+
+2. Stream Deck / Productivity Macropads: Expanding the code to monitor multiple touch pins to trigger IDE shortcuts or video editing macros.
+
+3. Penetration Testing (Authorized): Demonstrating "BadUSB" vulnerabilities to IT departments.
+
+4. Interactive Art Installations: Hiding jumper wires inside conductive paint to trigger media changes when attendees interact with the exhibit.
+
+
 ## Project Structure
 ```text
 touch_injector/
@@ -50,27 +75,3 @@ touch_injector/
 │   └── main.c                 # Application entry point, FreeRTOS tasks, and USB descriptors
 └── managed_components/
     └── espressif__esp_tinyusb # Downloaded TinyUSB stack via IDF Component Manager
-
-## How to Test Safely
-USB Keystroke injectors are powerful and can accidentally execute dangerous terminal commands if not tested properly.
-
-### Dual-Cable Connection: Ensure both the UART and USB-OTG cables are plugged into the host machine simultaneously.
-
-### Flash and Monitor: Run idf.py -p <UART_PORT> flash monitor to boot the device and view the live baseline capacitance logs.
-
-### The Sandbox: Open a completely blank text document (e.g., Notepad, TextEdit, or a new VS Code tab).
-
-### Arm the Device: Click your mouse inside the blank document so the blinking cursor is active.
-
-### Execute: Pinch the bare metal of the jumper wire. The string will instantly type out into the document, and the serial monitor will log "Touch Detected! Injecting String...".
-
-## Real-World Applications
-While this project types a simple "Hello" message, the underlying architecture serves as the foundation for highly practical applications:
-
-### Assistive Technology: Creating ultra-low-cost, custom adaptive switches for individuals with limited mobility.
-
-### Stream Deck / Productivity Macropads: Expanding the code to monitor multiple touch pins to trigger IDE shortcuts or video editing macros.
-
-### Penetration Testing (Authorized): Demonstrating "BadUSB" vulnerabilities to IT departments.
-
-### Interactive Art Installations: Hiding jumper wires inside conductive paint to trigger media changes when attendees interact with the exhibit.
